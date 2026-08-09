@@ -18,6 +18,9 @@ data class LexicalEntry(
     val languageTag: String = "en",
     val dialect: String?,
     val completeness: Int = 0,
+    val morphemes: String? = null,
+    val etymologyText: String? = null,
+    val frequency: Double? = null,
     val createdAt: Long = System.currentTimeMillis()
 )
 
@@ -61,6 +64,41 @@ data class LexicalSource(
     val license: String,
     val url: String?,
     val importedAt: Long = System.currentTimeMillis()
+)
+
+@Entity(
+    tableName = "entry_provenance",
+    foreignKeys = [
+        ForeignKey(entity = LexicalEntry::class, parentColumns = ["id"], childColumns = ["entryId"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(entity = LexicalSource::class, parentColumns = ["id"], childColumns = ["sourceId"], onDelete = ForeignKey.CASCADE)
+    ],
+    indices = [Index("entryId"), Index("sourceId"), Index(value = ["sourceId", "externalId"], unique = true)]
+)
+data class EntryProvenance(
+    @PrimaryKey val id: String,
+    val entryId: String,
+    val sourceId: String,
+    val externalId: String,
+    val citation: String?,
+    val importedAt: Long = System.currentTimeMillis()
+)
+
+enum class ImportConflictStatus { PENDING, SKIPPED, RESOLVED }
+
+@Entity(
+    tableName = "import_conflicts",
+    foreignKeys = [ForeignKey(entity = LexicalSource::class, parentColumns = ["id"], childColumns = ["sourceId"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index("sourceId"), Index("existingEntryId")]
+)
+data class ImportConflict(
+    @PrimaryKey val id: String,
+    val sourceId: String,
+    val externalId: String,
+    val incomingHeadword: String,
+    val existingEntryId: String?,
+    val reason: String,
+    val status: ImportConflictStatus = ImportConflictStatus.PENDING,
+    val createdAt: Long = System.currentTimeMillis()
 )
 
 data class SearchResult(val id: String, val headword: String, val partOfSpeech: String?, val ipa: String?, val matchReason: String)

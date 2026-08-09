@@ -5,16 +5,22 @@ import org.omnilex.data.local.OmniLexDao
 import org.omnilex.data.model.*
 
 class LexicalRepository(
-    private val dao: OmniLexDao
+    val dao: OmniLexDao
 ) 
 {
     fun search(rawQuery: String): Flow<List<SearchResult>> {
         val query = SearchNormalizer.normalize(rawQuery)
         if (query.isBlank()) return flowOf(emptyList())
+
+        // Format for FTS: append * for prefix matching
+        val ftsQuery = if (query.endsWith("%")) query.replace("%", "*") else "$query*"
+        
+        val ftsResults = dao.searchFts(ftsQuery, query)
         val spelling = dao.searchSpelling(query)
         val phonetic = dao.searchPhonetic(SearchNormalizer.soundex(query))
-        return combine(spelling, phonetic) { words, sounds ->
-            (words + sounds).distinctBy { it.id }.take(50)
+        
+        return combine(ftsResults, spelling, phonetic) { fts, words, sounds ->
+            (fts + words + sounds).distinctBy { it.id }.take(50)
         }
     }
 
@@ -27,6 +33,11 @@ class LexicalRepository(
         dao.insertEntries(SampleLexicon.entries)
         dao.insertSenses(SampleLexicon.senses)
         dao.insertRelationships(SampleLexicon.relationships)
+        
+        val ftsItems = SampleLexicon.entries.map { 
+            LexicalEntryFts(it.id, it.headword, it.normalizedHeadword, it.ipa, it.phonemeSegments) 
+        }
+        dao.insertFts(ftsItems)
     }
 }
 

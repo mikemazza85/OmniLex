@@ -9,6 +9,18 @@ import org.omnilex.data.model.*
 
 @Dao
 interface OmniLexDao {
+    @Query("""
+        SELECT e.id, e.headword, e.partOfSpeech, e.ipa, 'spelling' AS matchReason 
+        FROM lexical_entries e
+        JOIN lexical_entries_fts f ON e.id = f.entryId
+        WHERE lexical_entries_fts MATCH :query
+        ORDER BY CASE WHEN e.headword = :exact THEN 0 ELSE 1 END, e.headword
+        LIMIT :limit
+    """)
+    fun searchFts(query: String, exact: String, limit: Int = 50): Flow<List<SearchResult>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertFts(items: List<LexicalEntryFts>)
+
     @Query("SELECT id, headword, partOfSpeech, ipa, 'spelling' AS matchReason FROM lexical_entries WHERE normalizedHeadword LIKE '%' || :query || '%' ORDER BY CASE WHEN normalizedHeadword = :query THEN 0 WHEN normalizedHeadword LIKE :query || '%' THEN 1 ELSE 2 END, headword LIMIT :limit")
     fun searchSpelling(query: String, limit: Int = 50): Flow<List<SearchResult>>
 

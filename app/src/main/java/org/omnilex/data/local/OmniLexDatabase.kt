@@ -5,6 +5,18 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import org.omnilex.data.model.*
 
-@Database(entities = [LexicalEntry::class, Sense::class, LexicalRelationship::class, LexicalSource::class], version = 1, exportSchema = true)
+@Database(
+    entities = [
+        LexicalEntry::class,
+        LexicalEntryFts::class,
+        Sense::class,
+        LexicalRelationship::class,
+        LexicalSource::class,
+        EntryProvenance::class,
+        ImportConflict::class
+    ],
+    version = 3,
+    exportSchema = true
+)
 @TypeConverters(RoomConverters::class)
 abstract class OmniLexDatabase : RoomDatabase() { abstract fun omniLexDao(): OmniLexDao }

@@ -15,6 +15,7 @@ import androidx.navigation.compose.composable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import org.omnilex.data.importing.ImportState
 import org.omnilex.data.model.EntryDetail
 import org.omnilex.data.model.RelationshipType
 import org.omnilex.data.repository.LexicalRepository
@@ -42,23 +43,75 @@ fun OmniLexApp(
 private fun SearchScreen(viewModel: OmniLexViewModel, onEntry: (String) -> Unit) {
     val query by viewModel.searchQuery.collectAsState()
     val results by viewModel.results.collectAsState()
-    Scaffold(topBar = { TopAppBar(title = { Text("OmniLex") }) }) { padding ->
-        Column(Modifier.padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Explore words as connected language", style = MaterialTheme.typography.titleMedium)
-            OutlinedTextField(value = query, onValueChange = viewModel::search, modifier = Modifier.fillMaxWidth(), singleLine = true,
-                label = { Text("Search word, fragment, or phonetic match") }, placeholder = { Text("Try: bank, riv, save") })
-            Text("Phase 1 supports spelling fragments and a lightweight phonetic index. Graph exploration and source imports are prepared for later phases.", style = MaterialTheme.typography.bodySmall)
-            if (query.isNotBlank() && results.isEmpty()) Text("No local matches yet.", modifier = Modifier.padding(top = 20.dp))
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(results, key = { it.id }) { result ->
-                    ElevatedCard(onClick = { onEntry(result.id) }, modifier = Modifier.fillMaxWidth()) {
-                        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(result.headword, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                Text(listOfNotNull(result.partOfSpeech, result.ipa).joinToString("  "), style = MaterialTheme.typography.bodyMedium)
-                            }
-                            AssistChip(onClick = { onEntry(result.id) }, label = { Text(result.matchReason) })
+    val importStatus by viewModel.importStatus.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(importStatus) {
+        when (val status = importStatus) {
+            is ImportState.Success -> {
+                snackbarHostState.showSnackbar("Import successful! ${status.reports.sumOf { it.inserted }} items added.")
+            }
+            is ImportState.Error -> {
+                snackbarHostState.showSnackbar("Import failed: ${status.message}")
+            }
+            else -> {}
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = { 
+            TopAppBar(
+                title = { Text("OmniLex") }, 
+                actions = {
+                    Button(
+                        onClick = viewModel::triggerImport, 
+                        enabled = importStatus !is ImportState.Running,
+                        modifier = Modifier.padding(end = 8.dp)
+                    ) {
+                        if (importStatus is ImportState.Running) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Importing...")
+                        } else {
+                            Text("Import Data")
                         }
+                    }
+                }
+            ) 
+        }
+    ) { padding ->
+        Box(Modifier.fillMaxSize()) {
+            Column(Modifier.padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Explore words as connected language", style = MaterialTheme.typography.titleMedium)
+                OutlinedTextField(value = query, onValueChange = viewModel::search, modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    label = { Text("Search word, fragment, or phonetic match") }, placeholder = { Text("Try: bank, riv, save") })
+                
+                Text("Phase 2: Unified Lexical Data Engine. Search now supports FTS fragment matching and WordNet integration.", style = MaterialTheme.typography.bodySmall)
+                
+                if (query.isNotBlank() && results.isEmpty()) Text("No local matches yet.", modifier = Modifier.padding(top = 20.dp))
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(results, key = { it.id }) { result ->
+                        ElevatedCard(onClick = { onEntry(result.id) }, modifier = Modifier.fillMaxWidth()) {
+                            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(result.headword, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                    Text(listOfNotNull(result.partOfSpeech, result.ipa).joinToString("  "), style = MaterialTheme.typography.bodyMedium)
+                                }
+                                AssistChip(onClick = { onEntry(result.id) }, label = { Text(result.matchReason) })
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (importStatus is ImportState.Running) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.2f)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
                     }
                 }
             }
@@ -82,9 +135,32 @@ private fun EntryContent(detail: EntryDetail, modifier: Modifier = Modifier) {
         item {
             Text(detail.entry.headword, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
             Text(listOfNotNull(detail.entry.partOfSpeech, detail.entry.ipa, detail.entry.dialect).joinToString(" · "))
+            
+            detail.entry.frequency?.let { freq ->
+                Text("Usage Frequency: ${"%.2f".format(freq)} (Zipf)", style = MaterialTheme.typography.labelMedium)
+            }
+            
             LinearProgressIndicator(progress = { detail.entry.completeness / 100f }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
             Text("Data completeness: ${detail.entry.completeness}%", style = MaterialTheme.typography.labelSmall)
+            
+            if (detail.entry.completeness < 100) {
+                val missing = mutableListOf<String>()
+                if (detail.entry.ipa == null) missing.add("IPA")
+                if (detail.entry.etymologyText == null) missing.add("Etymology")
+                if (detail.relationships.none { it.relationship.type == RelationshipType.ANTONYM }) missing.add("Antonyms")
+                if (missing.isNotEmpty()) {
+                    Text("Missing: ${missing.joinToString(", ")}", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                }
+            }
         }
+
+        detail.entry.etymologyText?.let {
+            item {
+                Text("Etymology", style = MaterialTheme.typography.titleLarge)
+                Text(it, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+
         item { Text("Meanings", style = MaterialTheme.typography.titleLarge) }
         items(detail.senses, key = { it.id }) { sense ->
             ElevatedCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) {

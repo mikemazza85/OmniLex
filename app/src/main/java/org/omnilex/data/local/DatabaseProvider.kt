@@ -14,7 +14,9 @@ object DatabaseProvider {
                 context.applicationContext,
                 OmniLexDatabase::class.java,
                 "omnilex_database"
-            ).build()
+            )
+            .fallbackToDestructiveMigration()
+            .build()
 
             INSTANCE = instance
             instance
