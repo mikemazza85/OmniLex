@@ -15,7 +15,7 @@ import org.omnilex.data.model.*
         EntryProvenance::class,
         ImportConflict::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 @TypeConverters(RoomConverters::class)

@@ -4,11 +4,24 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.ClickableText
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -17,6 +30,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import org.omnilex.data.importing.ImportState
 import org.omnilex.data.model.EntryDetail
+import org.omnilex.data.model.LexicalEntry
 import org.omnilex.data.model.RelationshipType
 import org.omnilex.data.repository.LexicalRepository
 
@@ -28,14 +42,72 @@ fun OmniLexApp(
         factory = OmniLexViewModelFactory(repository)
     )
     val nav = rememberNavController()
-    MaterialTheme(colorScheme = lightColorScheme(primary = androidx.compose.ui.graphics.Color(0xFF355C7D))) {
-        NavHost(navController = nav, startDestination = "search") {
-            composable("search") { SearchScreen(viewModel, onEntry = { nav.navigate("entry/$it") }) }
-            composable("entry/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) { backStack ->
-                EntryScreen(backStack.arguments?.getString("id")!!, viewModel, onBack = { nav.popBackStack() })
+    val navIntent by viewModel.navigationIntent.collectAsState()
+
+    LaunchedEffect(navIntent) {
+        when (val intent = navIntent) {
+            is NavigationTarget.Entry -> {
+                nav.navigate("entry/${intent.id}")
+                viewModel.consumeNavigation()
+            }
+            is NavigationTarget.Graph -> {
+                nav.navigate("graph/${intent.id}")
+                viewModel.consumeNavigation()
+            }
+            is NavigationTarget.Search -> {
+                viewModel.search(intent.query)
+                // Stay on search screen
+                viewModel.consumeNavigation()
+            }
+            else -> {}
+        }
+    }
+
+    MaterialTheme(colorScheme = lightColorScheme(primary = Color(0xFF355C7D))) {
+        Box {
+            NavHost(navController = nav, startDestination = "search") {
+                composable("search") { 
+                    SearchScreen(viewModel, onEntry = { viewModel.navigateToEntry(it) }) 
+                }
+                composable("entry/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) { backStack ->
+                    EntryScreen(backStack.arguments?.getString("id")!!, viewModel, onBack = { nav.popBackStack() }, onGraph = { nav.navigate("graph/$it") })
+                }
+                composable("graph/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) { backStack ->
+                    GraphScreen(backStack.arguments?.getString("id")!!, viewModel, onBack = { nav.popBackStack() }, onNodeClick = { viewModel.navigateToEntry(it) })
+                }
+            }
+
+            if (navIntent is NavigationTarget.Disambiguation) {
+                val intent = navIntent as NavigationTarget.Disambiguation
+                DisambiguationDialog(
+                    candidates = intent.candidates,
+                    onSelect = { viewModel.navigateToEntry(it.id) },
+                    onDismiss = { viewModel.consumeNavigation() }
+                )
             }
         }
     }
+}
+
+@Composable
+fun DisambiguationDialog(candidates: List<LexicalEntry>, onSelect: (LexicalEntry) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Multiple Meanings Found") },
+        text = {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(candidates) { candidate ->
+                    ElevatedCard(onClick = { onSelect(candidate) }, modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp)) {
+                            Text(candidate.headword, fontWeight = FontWeight.Bold)
+                            Text(candidate.partOfSpeech ?: "word", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,6 +116,7 @@ private fun SearchScreen(viewModel: OmniLexViewModel, onEntry: (String) -> Unit)
     val query by viewModel.searchQuery.collectAsState()
     val results by viewModel.results.collectAsState()
     val importStatus by viewModel.importStatus.collectAsState()
+    val preferGraph by viewModel.preferGraphView.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(importStatus) {
@@ -64,6 +137,15 @@ private fun SearchScreen(viewModel: OmniLexViewModel, onEntry: (String) -> Unit)
             TopAppBar(
                 title = { Text("OmniLex") }, 
                 actions = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("View:", style = MaterialTheme.typography.labelSmall)
+                        IconButton(onClick = viewModel::toggleViewPreference) {
+                            Icon(if (preferGraph) Icons.Default.Share else Icons.AutoMirrored.Filled.List, 
+                                contentDescription = "Toggle View Default",
+                                tint = if (preferGraph) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                            )
+                        }
+                    }
                     Button(
                         onClick = viewModel::triggerImport, 
                         enabled = importStatus !is ImportState.Running,
@@ -87,7 +169,7 @@ private fun SearchScreen(viewModel: OmniLexViewModel, onEntry: (String) -> Unit)
                 OutlinedTextField(value = query, onValueChange = viewModel::search, modifier = Modifier.fillMaxWidth(), singleLine = true,
                     label = { Text("Search word, fragment, or phonetic match") }, placeholder = { Text("Try: bank, riv, save") })
                 
-                Text("Phase 2: Unified Lexical Data Engine. Search now supports FTS fragment matching and WordNet integration.", style = MaterialTheme.typography.bodySmall)
+                Text("Phase 3.5: Context-Aware Navigation. Click any word in a definition to explore related meanings.", style = MaterialTheme.typography.bodySmall)
                 
                 if (query.isNotBlank() && results.isEmpty()) Text("No local matches yet.", modifier = Modifier.padding(top = 20.dp))
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -121,16 +203,16 @@ private fun SearchScreen(viewModel: OmniLexViewModel, onEntry: (String) -> Unit)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EntryScreen(id: String, viewModel: OmniLexViewModel, onBack: () -> Unit) {
+private fun EntryScreen(id: String, viewModel: OmniLexViewModel, onBack: () -> Unit, onGraph: (String) -> Unit) {
     val detail by viewModel.entry(id).collectAsState(initial = null)
     Scaffold(topBar = { TopAppBar(title = { Text(detail?.entry?.headword ?: "Entry") }, navigationIcon = { TextButton(onClick = onBack) { Text("Back") } }) }) { padding ->
         if (detail == null) Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        else EntryContent(detail!!, Modifier.padding(padding))
+        else EntryContent(detail!!, id, viewModel, Modifier.padding(padding), onGraph = { onGraph(id) })
     }
 }
 
 @Composable
-private fun EntryContent(detail: EntryDetail, modifier: Modifier = Modifier) {
+private fun EntryContent(detail: EntryDetail, currentEntryId: String, viewModel: OmniLexViewModel, modifier: Modifier = Modifier, onGraph: () -> Unit) {
     LazyColumn(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             Text(detail.entry.headword, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
@@ -157,27 +239,114 @@ private fun EntryContent(detail: EntryDetail, modifier: Modifier = Modifier) {
         detail.entry.etymologyText?.let {
             item {
                 Text("Etymology", style = MaterialTheme.typography.titleLarge)
-                Text(it, style = MaterialTheme.typography.bodyMedium)
+                ClickableLexicalText(it) { word -> viewModel.resolveAndNavigate(word, currentEntryId) }
             }
         }
 
         item { Text("Meanings", style = MaterialTheme.typography.titleLarge) }
         items(detail.senses, key = { it.id }) { sense ->
-            ElevatedCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) {
-                Text(sense.definition, style = MaterialTheme.typography.bodyLarge)
-                sense.domain?.let { Text(it, style = MaterialTheme.typography.labelMedium) }
-                sense.contextualNote?.let { Text("Context: $it", style = MaterialTheme.typography.bodySmall) }
-            } }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column {
+                    // Experiential Layer (White)
+                    Column(Modifier.padding(16.dp)) {
+                        Text("EXPERIENTIAL", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                        ClickableLexicalText(sense.experientialDefinition, style = MaterialTheme.typography.bodyLarge) { word -> 
+                            viewModel.resolveAndNavigate(word, currentEntryId) 
+                        }
+                    }
+                    
+                    // Academic Layer (Blue)
+                    sense.academicDefinition?.let {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Color(0xFFE3F2FD) // Soft Academic Blue
+                        ) {
+                            Column(Modifier.padding(16.dp)) {
+                                Text("ACADEMIC", style = MaterialTheme.typography.labelSmall, color = Color(0xFF1976D2))
+                                ClickableLexicalText(it, style = MaterialTheme.typography.bodyMedium) { word -> 
+                                    viewModel.resolveAndNavigate(word, currentEntryId) 
+                                }
+                            }
+                        }
+                    }
+
+                    // Contextual Notes
+                    if (sense.domain != null || sense.contextualNote != null) {
+                        Column(Modifier.padding(16.dp)) {
+                            sense.domain?.let { Text(it, style = MaterialTheme.typography.labelMedium) }
+                            sense.contextualNote?.let { 
+                                Row {
+                                    Text("Context: ", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                                    ClickableLexicalText(it, style = MaterialTheme.typography.bodySmall) { word -> 
+                                        viewModel.resolveAndNavigate(word, currentEntryId) 
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         item { Text("Connections", style = MaterialTheme.typography.titleLarge) }
         if (detail.relationships.isEmpty()) item { Text("No linked entries in the local dataset.") }
         items(detail.relationships, key = { it.relationship.id }) { link ->
-            ListItem(headlineContent = { Text(link.headword) }, supportingContent = { Text(link.relationship.type.label() + " · ${"%.0f".format(link.relationship.confidence * 100)}% confidence") })
+            ListItem(
+                headlineContent = { Text(link.headword, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold) }, 
+                supportingContent = { Text(link.relationship.type.label() + " · ${"%.0f".format(link.relationship.confidence * 100)}% confidence") },
+                modifier = Modifier.clickable { viewModel.navigateToEntry(link.relationship.toEntryId) }
+            )
             HorizontalDivider()
         }
-        item { Text("Graph view (Phase 3)", style = MaterialTheme.typography.titleLarge) }
-        item { Text("This entry is already modeled as a graph node. The future interactive radial/spiderweb view will render these connections with type, provenance, and confidence weighting.") }
+        item { Text("Lexical Web", style = MaterialTheme.typography.titleLarge) }
+        item {
+            ElevatedButton(
+                onClick = onGraph,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Open Interactive Graph")
+            }
+        }
+        item { Text("Explore connections visually. The radial web view renders relationships with type, provenance, and confidence weighting.") }
     }
+}
+
+@Composable
+fun ClickableLexicalText(
+    text: String,
+    style: TextStyle = LocalTextStyle.current,
+    onWordClick: (String) -> Unit
+) {
+    val words = text.split(" ")
+    val annotatedString = buildAnnotatedString {
+        words.forEachIndexed { index, word ->
+            val cleanWord = word.replace(Regex("[^a-zA-Z0-9]"), "")
+            if (cleanWord.length > 2) {
+                pushStringAnnotation(tag = "WORD", annotation = cleanWord)
+                withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline, fontWeight = FontWeight.Medium)) {
+                    append(word)
+                }
+                pop()
+            } else {
+                append(word)
+            }
+            if (index < words.size - 1) append(" ")
+        }
+    }
+
+    ClickableText(
+        text = annotatedString,
+        style = style,
+        onClick = { offset ->
+            annotatedString.getStringAnnotations(tag = "WORD", start = offset, end = offset)
+                .firstOrNull()?.let { annotation ->
+                    onWordClick(annotation.item)
+                }
+        }
+    )
 }
 
 private fun RelationshipType.label() = name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }

@@ -12,10 +12,10 @@ object SampleLexicon {
         LexicalEntry("save", "save", "save", "verb", "/seɪv/", "s eɪ v", "S100",  "en", "0" ,completeness = 76)
     )
     val senses = listOf(
-        Sense("s-bank-1", "bank-finance", "A financial institution that accepts deposits and lends money.", "An organization mediating money and credit.", "Used in finance, commerce, and personal banking.", null, "finance", 1),
-        Sense("s-bank-2", "bank-river", "The sloping land beside a river or other body of water.", "A boundary formed by a body of water.", "Often occurs in geographic descriptions.", null, "geography", 1),
-        Sense("s-river-1", "river", "A large natural stream of water flowing in a channel to the sea, a lake, or another river.", null, null, null, "geography", 1),
-        Sense("s-save-1", "save", "Keep safe or reserve for future use.", null, "The financial sense commonly co-occurs with money.", null, "general", 1)
+        Sense("s-bank-1", "bank-finance", "A place where people keep and manage their money.", "An institution for receiving, lending, exchanging, and safeguarding money.", "An organization mediating money and credit.", "Used in finance, commerce, and personal banking.", null, "finance", 1),
+        Sense("s-bank-2", "bank-river", "The ground at the edge of a river.", "The sloping land bordering a body of water or a watercourse.", "A boundary formed by a body of water.", "Often occurs in geographic descriptions.", null, "geography", 1),
+        Sense("s-river-1", "river", "A large natural flow of water that goes into the sea.", "A natural stream of water of usually considerable volume.", null, null, null, "geography", 1),
+        Sense("s-save-1", "save", "To keep something so you can use it later.", "To preserve or reserve for future use or enjoyment.", null, "The financial sense commonly co-occurs with money.", null, "general", 1)
     )
     val relationships = listOf(
         LexicalRelationship("r-bank-homonym", "bank-finance", "bank-river", RelationshipType.HOMONYM, .99f, note = "Same spelling and pronunciation; distinct senses."),

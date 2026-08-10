@@ -28,7 +28,8 @@ data class LexicalEntry(
 data class Sense(
     @PrimaryKey val id: String,
     val entryId: String,
-    val definition: String,
+    val experientialDefinition: String,
+    val academicDefinition: String?,
     val conceptualNote: String?,
     val contextualNote: String?,
     val usageLabel: String?,

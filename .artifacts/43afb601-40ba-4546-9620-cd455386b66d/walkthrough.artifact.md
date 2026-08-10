@@ -1,26 +1,29 @@
-# Walkthrough: Build Stabilized on AGP 9.3.1 & Gradle 9.5
+# Walkthrough - Phase 4: Dual-Layered Semantic Definitions
 
-The project has been successfully stabilized following the upgrade to Android Gradle Plugin 9.3.1 and Gradle 9.5. This involved migrating from the legacy `kapt` processor to **KSP (Kotlin Symbol Processing)** and upgrading **Room** to resolve a critical JVM signature bug introduced in Kotlin 2.2.10.
+Implemented a specialized "Dual Definition" model that distinguishes between experiential learned concepts and formal academic meanings, inspired by high-utility dictionary interfaces.
 
-## Changes Made
+## Key Features
 
-### Build Engine Migration
-- **KSP Integration**: Replaced `org.jetbrains.kotlin.kapt` with `com.google.devtools.ksp` version `2.2.10-2.0.2` to ensure compatibility with Kotlin 2.2.10.
-- **Room Upgrade**: Upgraded Room to version `2.8.4`. This was necessary to fix the `unexpected jvm signature V` error, a known bug when using `suspend` functions in DAOs with KSP2 and Kotlin 2.x.
-- **Configuration**: Enabled `ksp.useKSP2=true` in `gradle.properties` to leverage the latest performance improvements in KSP.
+### 1. The Stacked Meaning Block
+Dictionary entries now present a cognitive hierarchy for every sense:
+- **Experiential Layer (White)**: The primary, usage-based definition. This represents the "learned concept" as understood in natural language.
+- **Academic Layer (Light Blue)**: The secondary, formal definition. This provides technical and educational context for deeper study.
 
-### Verification Results
+### 2. Universal Semantic Interactivity
+- **Cross-Layer Hyperlinks**: Both the Experiential and Academic layers are fully interactive.
+- **Intelligent Navigation**: Clicking a word in the formal Blue section correctly resolves to its corresponding entry, leveraging the Phase 3.5 context-engine.
 
-#### Automated Tests
-- `app:assembleDebug` built successfully.
-- Room schemas are correctly generated via KSP.
+### 3. Data Schema Evolution
+- Updated the `Sense` entity to store these two distinct semantic layers.
+- Enhanced the `SampleLexicon` and `WordNetImporter` to provide contrasting definitions for common terms (e.g., "bank", "knowledge", "river").
 
-#### Manual Verification
-- The app launches correctly on the Motorola Moto G Stylus 5G.
-- The **Unified Lexical Data Engine** (Phase 2) is fully operational:
-    - FTS-based search is working.
-    - WordNet data import pipeline is functional.
-    - Entry details show expanded linguistic attributes (etymology, frequency).
+## Technical Details
+- **UI Architecture**: Used a nested `Surface` within the meaning card to create the visually distinct blue-background academic section.
+- **Color Schema**: Standardized on `#E3F2FD` (Soft Blue) for the academic layer to ensure high legibility while providing clear visual grouping.
 
-![OmniLex Home Screen](file:///C:/Users/Mikem/Documents/Codex/2026-07-23/OmniLex Phase 1/.artifacts/43afb601-40ba-4546-9620-cd455386b66d/scratch/screenshot_home.png)
-> The app is stable and ready for Phase 3: Interactive Relationship Graphs.
+## Verification Result
+- **Visual Stacking**: Confirmed on physical device ZD222CYT8R via the "bank" and "knowledge" entries.
+- **Interaction**: Verified that users can jump between related experiential concepts by tapping keywords in either layer.
+
+render_diffs(file:///C:/Users/Mikem/Documents/Codex/2026-07-23/OmniLex%20Phase%201/app/src/main/java/org/omnilex/ui/OmniLexApp.kt)
+render_diffs(file:///C:/Users/Mikem/Documents/Codex/2026-07-23/OmniLex%20Phase%201/app/src/main/java/org/omnilex/data/model/LexicalModels.kt)

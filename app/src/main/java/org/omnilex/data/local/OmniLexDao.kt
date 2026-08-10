@@ -31,6 +31,24 @@ interface OmniLexDao {
     @Query("SELECT * FROM senses WHERE entryId = :entryId ORDER BY ordering") fun observeSenses(entryId: String): Flow<List<Sense>>
     @Query("SELECT r.*, e.headword, e.ipa FROM relationships r JOIN lexical_entries e ON e.id = r.toEntryId WHERE r.fromEntryId = :entryId ORDER BY r.type, e.headword")
     fun observeRelationships(entryId: String): Flow<List<RelationshipDisplay>>
+
+    @Query("SELECT * FROM lexical_entries WHERE id = :id") suspend fun getEntry(id: String): LexicalEntry?
+    @Query("SELECT r.*, e.headword, e.ipa FROM relationships r JOIN lexical_entries e ON e.id = r.toEntryId WHERE r.fromEntryId = :entryId")
+    suspend fun getOutgoingRelationships(entryId: String): List<RelationshipDisplay>
+    @Query("SELECT r.*, e.headword, e.ipa FROM relationships r JOIN lexical_entries e ON e.id = r.fromEntryId WHERE r.toEntryId = :entryId")
+    suspend fun getIncomingRelationships(entryId: String): List<RelationshipDisplay>
+
+    @Query("SELECT * FROM lexical_entries WHERE headword = :headword")
+    suspend fun getEntriesByHeadword(headword: String): List<LexicalEntry>
+
+    @Query("""
+        SELECT r.*, e.headword, e.ipa FROM relationships r 
+        JOIN lexical_entries e ON (e.id = r.toEntryId OR e.id = r.fromEntryId)
+        WHERE (r.fromEntryId = :contextId AND r.toEntryId IN (:candidateIds))
+           OR (r.toEntryId = :contextId AND r.fromEntryId IN (:candidateIds))
+    """)
+    suspend fun getRelationshipsBetween(contextId: String, candidateIds: List<String>): List<RelationshipDisplay>
+
     @Query("SELECT COUNT(*) FROM lexical_entries") suspend fun countEntries(): Int
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertEntries(items: List<LexicalEntry>)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertSenses(items: List<Sense>)

@@ -1,11 +1,13 @@
-# Build Fix: Kapt to KSP Migration Task List
+# Phase 4 Task List - Dual-Layered Semantic Definitions
 
-- `[x]` **1. Build Engine Configuration**
-    - `[x]` Update top-level `build.gradle.kts` with KSP plugin.
-    - `[x]` Update `app/build.gradle.kts` to apply KSP and update dependencies.
-    - `[x]` Update Room to `2.8.4` and enable `ksp.useKSP2=true`.
-- `[x]` **2. Verification**
-    - `[x]` Run `gradle_build("app:assembleDebug")`.
-    - `[x]` Verify application launch on device.
-    - `[ ]` Run `gradle_build("app:assembleDebug")`.
-    - `[ ]` Verify application launch on device.
+- `[x]` **Data Layer: Semantic Refinement**
+    - `[x]` Update `Sense` entity in `LexicalModels.kt` to include `experientialDefinition` and `academicDefinition`
+    - `[x]` Increment database version in `OmniLexDatabase.kt` and handle migration
+    - `[x]` Update `WordNetImporter.kt` and `SampleLexicon.kt` to populate both definition fields
+- `[x]` **Presentation Layer: Dual-Layer UI**
+    - `[x]` Define "Academic Blue" color in the UI theme
+    - `[x]` Update `EntryContent` in `OmniLexApp.kt` to render the stacked White-over-Blue meaning block
+    - `[x]` Ensure both definition layers use `ClickableLexicalText`
+- `[ ]` **Verification**
+    - `[ ]` Verify visual stacking on the physical device
+    - `[ ]` Verify cross-layer word interactivity

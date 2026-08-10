@@ -59,8 +59,9 @@ class WordNetImporter(
             Sense(
                 id = "wn-s-knowledge-1",
                 entryId = entryId,
-                definition = "Facts, information, and skills acquired by a person through experience or education.",
-                conceptualNote = "The theoretical or practical understanding of a subject.",
+                experientialDefinition = "What you know through your own life and learning.",
+                academicDefinition = "The theoretical or practical understanding of a subject acquired by a person through experience or education.",
+                conceptualNote = "The state of being aware of facts or information.",
                 contextualNote = null,
                 usageLabel = null,
                 domain = "general",
