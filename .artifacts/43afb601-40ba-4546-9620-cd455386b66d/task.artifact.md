@@ -1,22 +1,11 @@
-# OmniLex Phase 2 Task List
+# Build Fix: Kapt to KSP Migration Task List
 
-- `[x]` **1. Data Model & Schema Expansion**
-    - `[x]` Update `LexicalModels.kt` with frequency, etymology, and morphemes.
-    - `[x]` Create `LexicalFts.kt` for Full-Text Search indexing.
-    - `[x]` Update `OmniLexDatabase.kt` to include new entities and FTS triggers/tables.
-- `[x]` **2. Search Engine Upgrade**
-    - `[x]` Update `OmniLexDao.kt` with FTS search queries (infix, wildcard).
-    - `[x]` Refactor `LexicalRepository.kt` to use the new FTS engine.
-    - `[x]` Implement phoneme-fragment matching logic.
-- `[x]` **3. Import Pipeline Implementation**
-    - `[x]` Create `LexicalImporter` interface refinements.
-    - `[x]` Implement `WordNetImporter.kt` (mapping Synsets to entries/relationships).
-    - `[x]` Create `ImportManager.kt` for background execution and progress tracking.
-- `[x]` **4. UI Enhancements**
-    - `[x]` Update Entry Detail screen with new linguistic attributes.
-    - `[x]` Implement "Completeness Score" breakdown visualization.
-    - `[x]` Add "Source Attribution" footer to entries.
-- `[/]` **5. Verification & Testing**
-    - `[ ]` Write unit tests for FTS fragment matching.
-    - `[ ]` Verify WordNet import with a sample subset.
-    - `[ ]` Manual verification of search performance.
+- `[x]` **1. Build Engine Configuration**
+    - `[x]` Update top-level `build.gradle.kts` with KSP plugin.
+    - `[x]` Update `app/build.gradle.kts` to apply KSP and update dependencies.
+    - `[x]` Update Room to `2.8.4` and enable `ksp.useKSP2=true`.
+- `[x]` **2. Verification**
+    - `[x]` Run `gradle_build("app:assembleDebug")`.
+    - `[x]` Verify application launch on device.
+    - `[ ]` Run `gradle_build("app:assembleDebug")`.
+    - `[ ]` Verify application launch on device.
